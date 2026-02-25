@@ -1,0 +1,31 @@
+# Save Model and Inference Script
+
+This plan addresses the requirement to save the trained model to the hard disk and create a script that takes text input from the terminal to show the predicted label.
+
+## Proposed Changes
+
+We need to save the stateful components (TF-IDF vectorizer and XGBoost model) during training so they can be loaded for inference.
+
+### src/tfidf_vectorizer.py
+- [MODIFY] Modify [compute_tfidf](file:///d:/Studdy%20D/project%20work%20college/project-main/src/tfidf_vectorizer.py#3-7) to return both the `tfidf_matrix` and the fitted `TfidfVectorizer` object.
+
+### src/classifier.py
+- [MODIFY] Modify [train_xgboost](file:///d:/Studdy%20D/project%20work%20college/project-main/src/classifier.py#9-23) to save the trained `XGBClassifier` model to disk (e.g., `xgboost_model.json`).
+
+### src/main.py & src/main2.py
+- [MODIFY] Update [main.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/main.py) and [main2.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/main2.py) to receive the [tfidf](file:///d:/Studdy%20D/project%20work%20college/project-main/src/tfidf_vectorizer.py#3-7) vectorizer from [compute_tfidf](file:///d:/Studdy%20D/project%20work%20college/project-main/src/tfidf_vectorizer.py#3-7) and save it to disk (e.g., `tfidf_vectorizer.pkl`) using `joblib`.
+
+### src/predict.py
+- [NEW] Create a new script for inference.
+- It will load the saved `xgboost_model.json` and `tfidf_vectorizer.pkl`.
+- It will run an interactive loop taking input from the terminal (`data = input("Enter news text: ")`).
+- It will clean the text, compute its TF-IDF vector, extract SentenceTransformer embeddings, combine them, and predict the label (Fake/Real) using the loaded model.
+- It will print the result to the terminal.
+
+## Verification Plan
+
+### Automated Tests
+- Run `python src/predict.py` with a sample text to ensure it loads the models correctly, processes the text without errors, and outputs a prediction. (This requires running [main.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/main.py) once to generate the saved models if they don't exist yet).
+
+### Manual Verification
+- The user can run `python src/predict.py` in their terminal and manually enter various text samples to verify the model's behavior and the terminal output formatting.

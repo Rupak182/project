@@ -1,4 +1,6 @@
 import pandas as pd
+import joblib
+import os
 from preprocessing import apply_text_cleaning,normalize_metadata
 from tfidf_vectorizer import compute_tfidf
 from embedder import extract_embeddings
@@ -22,8 +24,10 @@ def main():
         # print("Metadata normalized successfully.")
 
         
-        tfidf_matrix = compute_tfidf(df['clean_text'],max_features=5000)
-        print("TF-IDF matrix computed successfully.")
+        tfidf_matrix, tfidf_vectorizer = compute_tfidf(df['clean_text'],max_features=5000)
+        os.makedirs('models', exist_ok=True)
+        joblib.dump(tfidf_vectorizer, 'models/tfidf_vectorizer.pkl')
+        print("TF-IDF matrix computed successfully and vectorizer saved to models/tfidf_vectorizer.pkl.")
 
         embeddings = extract_embeddings(df['clean_text'])
         print("Embeddings computed successfully.")

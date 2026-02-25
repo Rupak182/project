@@ -1,0 +1,27 @@
+# Save Model and Inference
+
+## Changes Made
+1. **Model Persistence in Training:**
+   - Modified [src/tfidf_vectorizer.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/tfidf_vectorizer.py) to return the `TfidfVectorizer` object alongside the matrix.
+   - Updated [src/main.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/main.py) and [src/main2.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/main2.py) to save the `TfidfVectorizer` object to `models/tfidf_vectorizer.pkl`.
+   - Updated [src/classifier.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/classifier.py) to save the trained XGBoost model to `models/xgboost_model.json`.
+
+2. **Inference Script ([src/predict.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/predict.py)):**
+   - Added a new script [src/predict.py](file:///d:/Studdy%20D/project%20work%20college/project-main/src/predict.py).
+   - This script loads the saved models (the text vectorizer and the classification model).
+   - It runs an interactive terminal loop prompt asking you for `"Enter news text: "`.
+   - The script cleans the input, extracts the TF-IDF representation, generates transformer embeddings, combines the features, and predicts if the news is **FAKE** or **REAL**.
+
+
+## Usage Instructions
+1. First, whenever you run your training pipeline to fit the models:
+```bash
+python src/main.py
+```
+This will automatically save the models to a [models/](file:///d:/Studdy%20D/project%20work%20college/project-main/src/predict.py#9-23) directory in your project folder.
+
+2. Next, you can run the inference script to test sample sentences from the terminal:
+```bash
+python src/predict.py
+```
+Type any sample news text to check the model's prediction, and type `exit` to quit the interactive loop.
