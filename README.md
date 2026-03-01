@@ -17,3 +17,5 @@ The datasets and trained models used in this project are very large and are stri
 Datasets:
 https://www.kaggle.com/datasets/studymart/welfake-dataset-for-fake-news
 https://www.kaggle.com/datasets/csmalarkodi/isot-fake-news-dataset
+iSOT_FAKE.csv
+ISOT_TRUE.csv
