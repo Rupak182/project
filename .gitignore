@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 .env
 .venv/
+
+# Ignore large datasets and models
+*.csv
+*.safetensors
+models/
+data/
+distilbert_finetuned/

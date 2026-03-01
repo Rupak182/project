@@ -18,9 +18,9 @@ def train_xgboost(X,y):
     print("XGBoost model saved to models/xgboost_model.json")
     
     y_pred = model.predict(X_test)
-    print("Classification Report:\n",classification_report(y_test,y_pred,target_names=['Fake','Real']))
+    print("Classification Report:\n",classification_report(y_test,y_pred,target_names=['Real','Fake']))
     cm = confusion_matrix(y_test,y_pred)
-    sns.heatmap(cm,annot=True,fmt='d',cmap="Blues", xticklabels=['Fake','Real'],yticklabels=['Fake','Real'])
+    sns.heatmap(cm,annot=True,fmt='d',cmap="Blues", xticklabels=['Real','Fake'],yticklabels=['Real','Fake'])
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.title("Confusion Matrix")
