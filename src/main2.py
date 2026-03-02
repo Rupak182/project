@@ -12,8 +12,18 @@ def main():
 
     print("Loading data...")
     try:
-        df = pd.read_csv("data/combined_news.csv")
-        print("Data loaded successfully.")
+        gc_real = pd.read_csv("data/gossipcop_real.csv")
+        gc_fake = pd.read_csv("data/gossipcop_fake.csv")
+        
+        gc_real = gc_real.dropna(subset=["title", "news_url"]).copy()
+        gc_fake = gc_fake.dropna(subset=["title", "news_url"]).copy()
+        
+        gc_real['label'] = 0
+        gc_fake['label'] = 1
+        
+        df = pd.concat([gc_real, gc_fake], ignore_index=True)
+        df.rename(columns={'title': 'text'}, inplace=True)
+        print("GossipCop data loaded successfully.")
 
 
         df = apply_text_cleaning(df,text_column='text')
