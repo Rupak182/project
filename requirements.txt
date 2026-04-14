@@ -10,3 +10,4 @@ seaborn
 nltk
 sentence_transformers
 shap
+captum
