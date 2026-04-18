@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\ranja\AppData\Local\Programs\Python\Python311\Scripts\streamlit.exe\__main__.py", line 4, in <module>
+  File "C:\Users\ranja\AppData\Local\Programs\Python\Python311\Lib\site-packages\streamlit\__init__.py", line 75, in <module>
+    from streamlit.delta_generator import DeltaGenerator as _DeltaGenerator
+  File "C:\Users\ranja\AppData\Local\Programs\Python\Python311\Lib\site-packages\streamlit\delta_generator.py", line 25, in <module>
+    from streamlit.proto import Block_pb2
+  File "C:\Users\ranja\AppData\Local\Programs\Python\Python311\Lib\site-packages\streamlit\proto\Block_pb2.py", line 36, in <module>
+    _descriptor.FieldDescriptor(
+  File "C:\Users\ranja\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\protobuf\descriptor.py", line 675, in __new__
+    _message.Message._CheckCalledFromGeneratedFile()
+TypeError: Descriptors cannot be created directly.
+If this call came from a _pb2.py file, your generated code is out of date and must be regenerated with protoc >= 3.19.0.
+If you cannot immediately regenerate your protos, some other possible workarounds are:
+ 1. Downgrade the protobuf package to 3.20.x or lower.
+ 2. Set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python (but this will use pure-Python parsing and will be much slower).
+
+More information: https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates

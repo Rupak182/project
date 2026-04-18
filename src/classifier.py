@@ -4,9 +4,6 @@ from sklearn.metrics import classification_report, confusion_matrix
 from matplotlib import pyplot as plt
 import seaborn as sns
 import os
-
-
-
 def train_xgboost(X,y):
 
     X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2,random_state=42)
