@@ -94,6 +94,9 @@ def plot_waterfall(tokens, scores, pred_prob, text):
     if max_val == 0: max_val = 1.0
     offset = max_val * 0.05
 
+    # Expand x-axis limits to prevent text from overlapping with left y-axis labels
+    ax.set_xlim(-max_val * 1.3, max_val * 1.3)
+
     # Annotate bar values
     for bar, val in zip(bars, top_scores):
         xpos = val + offset if val >= 0 else val - offset
