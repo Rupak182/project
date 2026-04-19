@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import joblib
+from xgboost import XGBClassifier
+from transformers import DistilBertModel
 
 from explain_ig import (
     load_models,
@@ -18,10 +21,23 @@ st.set_page_config(layout="wide", page_title="Fake News Expainability App")
 # 1. Model Loading (Cached)
 @st.cache_resource
 def load_all_models():
+    """Loads DistilBertForSequenceClassification + IG wrapper (for explanations)."""
     tokenizer, model, device = load_models()
     wrapper = DistilBertIGWrapper(model)
     ig = IntegratedGradients(wrapper)
     return tokenizer, model, device, wrapper, ig
+
+
+@st.cache_resource
+def load_xgb_pipeline():
+    """Loads DistilBertModel (base, for CLS embeddings) + trained XGBoost model."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    from explain_ig import FINETUNED_DIR
+    base_model = DistilBertModel.from_pretrained(FINETUNED_DIR)
+    base_model.to(device).eval()
+    xgb_model = XGBClassifier()
+    xgb_model.load_model("models/xgboost_finetuned.json")
+    return base_model, xgb_model, device
 
 # Text highlighting function
 def get_html_highlighted_text(tokens, scores):
@@ -59,11 +75,11 @@ def get_html_highlighted_text(tokens, scores):
 # Matplotlib Waterfall
 def plot_waterfall(tokens, scores, pred_prob, text):
     order = np.argsort(np.abs(scores))[::-1][:20]
-    top_tokens = [tokens[i] for i in order][::-1]   # bottom→top
+    top_tokens = [str(tokens[i])[:20] for i in order][::-1]   # bottom→top
     top_scores = [scores[i] for i in order][::-1]
     colors = ["#e74c3c" if s > 0 else "#2980b9" for s in top_scores]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(6, 8))
     bars = ax.barh(top_tokens, top_scores, color=colors)
     ax.axvline(0, color="gray", linewidth=0.8, linestyle="--")
     ax.set_xlabel("Attribution Score (red=toward FAKE, blue=toward REAL)")
@@ -74,20 +90,30 @@ def plot_waterfall(tokens, scores, pred_prob, text):
         fontsize=10, pad=10
     )
 
+    max_val = np.max(np.abs(top_scores)) if len(top_scores) > 0 else 1.0
+    if max_val == 0: max_val = 1.0
+    offset = max_val * 0.05
+
     # Annotate bar values
     for bar, val in zip(bars, top_scores):
-        xpos = val + 0.001 if val >= 0 else val - 0.001
+        xpos = val + offset if val >= 0 else val - offset
         ha = "left" if val >= 0 else "right"
         ax.text(xpos, bar.get_y() + bar.get_height() / 2,
-                f"{val:+.3f}", va="center", ha=ha, fontsize=8)
+                f"{val:+.4f}", va="center", ha=ha, fontsize=8)
 
-    plt.tight_layout()
+    # Use layout adjustment that won't throw tight_layout constraint errors
+    try:
+        fig.tight_layout()
+    except UserWarning:
+        pass
+    
     return fig
 
-# Basic batch prediction without IG for the table using pure torch
+# Batch prediction using DistilBERT [CLS] embeddings → XGBoost
 @torch.no_grad()
-def batch_predict(texts, tokenizer, wrapper, device):
-    probs = []
+def batch_predict(texts, tokenizer, base_model, xgb_model, device):
+    """Extracts [CLS] embeddings from base DistilBertModel, then predicts with XGBoost."""
+    all_embeddings = []
     batch_size = 16
     for i in range(0, len(texts), batch_size):
         batch_texts = texts[i:i+batch_size]
@@ -100,11 +126,16 @@ def batch_predict(texts, tokenizer, wrapper, device):
         )
         input_ids = enc["input_ids"].to(device)
         attention_mask = enc["attention_mask"].to(device)
-        input_embeds = wrapper.model.distilbert.embeddings(input_ids)
-        
-        preds = wrapper(input_embeds, attention_mask).cpu().tolist()
-        probs.extend(preds)
-    return probs
+        outputs = base_model(input_ids, attention_mask=attention_mask)
+        # [CLS] token hidden state — shape: (batch, 768)
+        cls_embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+        all_embeddings.append(cls_embeddings)
+
+    import numpy as np
+    all_embeddings = np.vstack(all_embeddings)
+    # XGBoost predict_proba returns [[P(REAL), P(FAKE)], ...]
+    probs_fake = xgb_model.predict_proba(all_embeddings)[:, 1].tolist()
+    return probs_fake
 
 def main():
     st.title("Fake News Expainability App")
@@ -114,7 +145,14 @@ def main():
         try:
             tokenizer, model, device, wrapper, ig = load_all_models()
         except Exception as e:
-            st.error(f"Error loading models. Have you trained them? Error: {e}")
+            st.error(f"Error loading IG models. Have you trained them? Error: {e}")
+            return
+
+    with st.spinner("Loading XGBoost model..."):
+        try:
+            base_model, xgb_model, xgb_device = load_xgb_pipeline()
+        except Exception as e:
+            st.error(f"Error loading XGBoost model. Have you run main7.py? Error: {e}")
             return
 
     st.sidebar.header("1. Upload Data")
@@ -144,22 +182,23 @@ def main():
         # Session state for predictions
         if "df_preds" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
             texts = df[text_col].astype(str).tolist()
-            with st.spinner("Running batch predictions..."):
+            with st.spinner("Running XGBoost batch predictions..."):
                 try:
-                    probs = batch_predict(texts, tokenizer, wrapper, device)
+                    probs = batch_predict(texts, tokenizer, base_model, xgb_model, xgb_device)
                     df["P(FAKE)"] = probs
                     df["P(REAL)"] = 1.0 - df["P(FAKE)"]
+                    df["Prediction"] = df["P(FAKE)"].apply(lambda p: "FAKE" if p >= 0.5 else "REAL")
                     st.session_state.df_preds = df
                     st.session_state.last_uploaded = uploaded_file.name
                 except Exception as e:
-                    st.error(f"Error in batch predictions: {e}")
+                    st.error(f"Error in XGBoost batch predictions: {e}")
                     return
         
         df_display = st.session_state.df_preds
 
         st.header("2. Data & Predictions")
         st.markdown("Here is the raw data sorted by prediction probability. Select a **Row Index** below for explanation.")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_display, width=800)
 
         st.header("3. Explanations (Integrated Gradients)")
         row_idx = st.selectbox("Select sample index to explain:", df_display.index)
@@ -188,13 +227,13 @@ def main():
                 st.subheader("Attribution Visualization")
                 # Need to use a lambda or pass text differently
                 fig = plot_waterfall(tokens, scores, pred_prob, str(sample_text))
-                st.pyplot(fig)
+                st.pyplot(fig)  # Avoiding `use_container_width` for now
 
             with col2:
                 st.subheader("Highlighted Text")
                 st.markdown("> **Red** = Pushed prediction toward FAKE. **Blue** = Pushed prediction toward REAL.")
                 html_code = get_html_highlighted_text(tokens, scores)
-                st.components.v1.html(html_code, height=400, scrolling=True)
+                st.markdown(html_code, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 
 # Ignore large datasets and models
-*.csv
+
 *.safetensors
 models/
 data/
