@@ -1,23 +1,23 @@
-from sentence_transformers import SentenceTransformer
+import torch
+from transformers import RobertaTokenizer, RobertaModel
 import numpy as np
 from tqdm import tqdm
 
-# Load the optimized model (approx 30M params vs 125M for RoBERTa)
-# This model is specifically trained for semantic similarity and clustering
-model = SentenceTransformer('all-MiniLM-L6-v2') 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_embedding(text):
-    """
-    Get embedding for a single text using SentenceTransformer.
-    Returns a 1D numpy array (384-dim for MiniLM).
-    """
-    return model.encode(text, convert_to_numpy=True)
+tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
+model = RobertaModel.from_pretrained("roberta-base")
+model.to(device)
+model.eval()
+
+def get_roberta_embedding(text):
+    """Get mean pooled RoBERTa embedding for a single text."""
+    inputs = tokenizer(text, return_tensors='pt', padding=True, truncation=True, max_length=128)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1).cpu().numpy().flatten()
 
 def extract_embeddings(texts):
-    """
-    Extract embeddings for a list of texts efficiently.
-    Batch processing is handled automatically by the library.
-    """
-    # show_progress_bar=True gives a nice tqdm output automatically
-    embeddings = model.encode(texts, batch_size=32, show_progress_bar=True, convert_to_numpy=True)
-    return embeddings
+    """Extract embeddings for a list of texts."""
+    return np.vstack([get_roberta_embedding(text) for text in tqdm(texts, desc="Extracting RoBERTa embeddings")])
